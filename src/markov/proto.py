@@ -1,5 +1,6 @@
 import string
 from collections import Counter
+import numpy as np
 
 test_string = 'This is sample test string. String is simple. Test string. Is sample. Another one.'
 
@@ -34,9 +35,26 @@ def dict_to_distr(word_dict):
 	return word_distr
 
 
+def generate_text(word_distr, text_length=10):
+	text = ''
+	next_word = word_distr.keys()[np.random.randint(len(word_distr))]
+	text = next_word
+	for i in range(text_length):
+		if not (next_word in word_distr and len(word_distr[next_word]) > 0):
+			continue
+		next_word = np.random.choice(word_distr[next_word].keys(), 1, p=word_distr[next_word].values())[0]
+		text += ' ' + next_word
+	return text
+
+
 if __name__ == '__main__':
+	with open('./../../test_data/GoT1.txt', 'r') as f:
+		test_string = f.read()
 	text = clear_text(test_string)
 	words = text_to_words(text)
 	word_dict = words_to_dict(words)
 	word_distr = dict_to_distr(word_dict)
-	print word_distr
+	
+	next_word = word_distr.keys()[np.random.randint(len(word_distr))]
+	generated = generate_text(word_distr, 15)
+	print generated
