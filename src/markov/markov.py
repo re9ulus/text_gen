@@ -2,9 +2,9 @@
 
 import re
 import string
-from collections import Counter, defaultdict
-import numpy as np
 import codecs
+import numpy as np
+from collections import Counter, defaultdict
 
 
 test_string = 'This is sample test string. String is simple. Test string. Is sample. Another one.'
@@ -24,12 +24,13 @@ class Markov:
         self.text = text
         self.words = self._text_to_words(self._clear_text(self.text))
 
-        self.ngram_word_distributions = {}
+        self.word_distr = {}
 
         for n in self.n_grams:
             word_dict = self._words_to_dict_ngram(self.words, n)
             word_distr = self._dict_to_distr(word_dict)
-            self.ngram_word_distributions[n] = word_distr
+            for key in word_distr:
+                self.word_distr[key] = word_distr[key]
 
     @classmethod
     def _clear_text(cls, text):
@@ -59,56 +60,44 @@ class Markov:
                 word_distr[key][target_word] = word_counts[target_word] / float(list_len)
         return word_distr
 
-    def generate(self, text_length=10):
-        return self.generate_from_ngram(1, text_length=text_length)
+    def _get_next_word(self, key):
+        if not (key in self.word_distr and len(self.word_distr[key]) > 0):
+            return None
+        return np.random.choice(self.word_distr[key].keys(), 1, p=self.word_distr[key].values())[0]
 
     def generate_bigram(self, text_length=10):
         return self.generate_from_ngram(2, text_length=text_length)
 
     def generate_from_ngram(self, n, text_length=10):
-        if n not in self.ngram_word_distributions:
-            raise KeyError('n-grams for n={} not initialized'.format(n))
-        word_distr = self.ngram_word_distributions[n]
+        word_distr = self.word_distr
         key = word_distr.keys()[np.random.randint(len(word_distr))]
         chosen_words = list(key[:])
         for i in range(text_length - n):
-            word = self.get_next_word(key, word_distr)
-            if word is None:
+            word = _get_next_word(key)
+            if not word:
                 break
             chosen_words.append(word)
             key = tuple(chosen_words[-n:])
         return ' '.join(chosen_words)
 
-    def get_next_word(self, key, word_distr):
-        if not (key in word_distr and len(word_distr[key]) > 0):
-            return None
-        return np.random.choice(word_distr[key].keys(), 1, p=word_distr[key].values())[0]
-
     def generate(self, text_length=10):
-        # test version win 1-2 grams
+        # Test version for [1, 2] n-grams
         one_gram_prob = 0.33
 
         n = np.random.choice(self.n_grams, 1, p=[one_gram_prob, 1-one_gram_prob])[0]
-        word_distr = self.ngram_word_distributions[n]
+        word_distr = self.word_distr
 
         key = word_distr.keys()[np.random.randint(len(word_distr))]
         chosen_words = list(key[:])
         for i in range(text_length - n):
-            if len(key) < n: # if not enougth words for key
-                key = tuple(chosen_words[-1])
-                word_distr = self.ngram_word_distributions[1]
-
-            print n
-            word = self.get_next_word(key, word_distr)
+            word = self._get_next_word(key)
             if word is None:
                 break
             chosen_words.append(word)
-            
-            n = np.random.choice(self.n_grams, 1, p=[one_gram_prob, 1-one_gram_prob])[0]
-            word_distr = self.ngram_word_distributions[n]
-            
+            n = np.random.choice(self.n_grams, 1, p=[one_gram_prob, 1-one_gram_prob])[0]            
             key = tuple(chosen_words[-n:])
         return ' '.join(chosen_words)
+
 
 if __name__ == '__main__':
     with open('./../../test_data/test_text.txt', 'r') as f:
@@ -118,6 +107,6 @@ if __name__ == '__main__':
 
     with open('./../../test_data/res.txt', 'w+') as f:
         for i in range(20):
-            generated = mark.generate(text_length=15)
+            generated = mark.generate(text_length=25)
             f.write(generated.encode('UTF-8'))
             f.write('\n\n=== === ===\n\n')
