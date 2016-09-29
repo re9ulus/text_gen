@@ -2,7 +2,7 @@
 
 import re
 import string
-from collections import Counter
+from collections import Counter, defaultdict
 import numpy as np
 import codecs
 
@@ -52,6 +52,15 @@ class Markov:
         return word_dict
 
     @staticmethod
+    def _words_to_dict_ngram(words, n=2):
+        word_dict = defaultdict(list)
+        for i in range(len(words)-n):
+            key = tuple(words[i:i+n])
+            next_word = words[i+n]
+            word_dict[key] = next_word
+        return word_dict
+
+    @staticmethod
     def _dict_to_distr(word_dict):
         word_distr = {}
         for key in word_dict:
@@ -62,15 +71,14 @@ class Markov:
                 word_distr[key][target_word] = word_counts[target_word] / float(list_len)
         return word_distr
 
-
     def generate(self, text_length=10):
         text = ''
         next_word = self.word_distr.keys()[np.random.randint(len(self.word_distr))]
         text = next_word
         for i in range(text_length):
-            if not (next_word in self.word_distr and len(self.word_distr[next_word]) > 0):
+            next_word = self.get_next_word(key, self.word_distr)
+            if not next_word:
                 break
-            next_word = np.random.choice(self.word_distr[next_word].keys(), 1, p=self.word_distr[next_word].values())[0]
             text += ' ' + next_word
         return text
 
@@ -78,13 +86,30 @@ class Markov:
         text = ''
         key = self.word_distr.keys()[np.random.randint(len(self.word_distr))]
         text = ' '.join(key)
-        for i in range(text_length):
-            if not (key in self.word_distr and len(self.word_distr[key]) > 0):
+        for i in range(text_length - len(key)):
+            next_word = self.get_next_word(key, self.word_distr)
+            if not next_word:
                 break
-            next_word = np.random.choice(self.word_distr[key].keys(), 1, p=self.word_distr[key].values())[0]
             text += ' ' + next_word
             key = (key[-1], next_word)
         return text
+
+    def generate_from_ngram(self, text_length=10):
+        text = ''
+        key = self.word_distr.keys()[np.random.randint(len(self.word_distr))]
+        text = ' '.join(key)
+        for i in range(text_length - len(key)):
+            next_word = self.get_next_word(key, self.word_distr)
+            if not next_word:
+                break
+            text += ' ' + next_word
+            key = (key[-1], next_word)
+        return text
+
+    def get_next_word(self, key, word_distr):
+        if not (key in word_distr and len(word_distr[key]) > 0):
+            return None
+        return np.random.choice(word_distr[key].keys(), 1, p=word_distr[key].values())[0]
 
 
 if __name__ == '__main__':
@@ -97,8 +122,8 @@ if __name__ == '__main__':
     mark = Markov(test_string)
     # print mark.word_distr
 
-    with open('res.txt', 'w+') as f:
+    with open('./../test_data/res.txt', 'w+') as f:
         for i in range(20):
-            generated = mark.generate_bigram()
+            generated = mark.generate_bigram(text_length=15)
             f.write(generated.encode('UTF-8'))
             f.write('\n\n=== === ===\n\n')
