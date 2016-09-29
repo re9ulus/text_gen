@@ -13,11 +13,23 @@ class Markov:
 
     punctuation_regex = re.compile('[%s]' % re.escape(string.punctuation))
 
-    def __init__(self, text):
+    def __init__(self, text, n_grams=None):
+        """
+        text - text to generate Markov chain
+        n_grams - array with the list of n-grams to use. Default values is [1, 2]
+        """
+        if not n_grams:
+            n_grams = [1, 2]
+        self.n_grams = n_grams
         self.text = text
         self.words = self._text_to_words(self._clear_text(self.text))
-        self.word_dict = self._words_to_dict_ngram(self.words) #_words_to_dict_bigram(self.words) #
-        self.word_distr = self._dict_to_distr(self.word_dict)
+
+        self.ngram_word_distributions = {}
+
+        for n in self.n_grams:
+            word_dict = self._words_to_dict_ngram(self.words, n)
+            word_distr = self._dict_to_distr(word_dict)
+            self.ngram_word_distributions[n] = word_distr
 
     @classmethod
     def _clear_text(cls, text):
@@ -26,14 +38,6 @@ class Markov:
     @staticmethod
     def _text_to_words(text):
         return text.split()
-
-    @staticmethod
-    def _words_to_dict(words):
-        word_dict = defaultdict(list)
-        for i in range(len(words)-1):
-            word, next_word = words[i], words[i+1]
-            word_dict[word].append(next_word)
-        return word_dict
 
     @staticmethod
     def _words_to_dict_ngram(words, n=1):
@@ -62,10 +66,13 @@ class Markov:
         return self.generate_from_ngram(2, text_length=text_length)
 
     def generate_from_ngram(self, n, text_length=10):
-        chosen_words = []
-        key = self.word_distr.keys()[np.random.randint(len(self.word_distr))]
+        if n not in self.ngram_word_distributions:
+            raise KeyError('n-grams for n={} not initialized'.format(n))
+        word_distr = self.ngram_word_distributions[n]
+        key = word_distr.keys()[np.random.randint(len(word_distr))]
+        chosen_words = list(key[:])
         for i in range(text_length - n):
-            word = self.get_next_word(key, self.word_distr)
+            word = self.get_next_word(key, word_distr)
             if word is None:
                 break
             chosen_words.append(word)
@@ -77,6 +84,31 @@ class Markov:
             return None
         return np.random.choice(word_distr[key].keys(), 1, p=word_distr[key].values())[0]
 
+    def generate(self, text_length=10):
+        # test version win 1-2 grams
+        one_gram_prob = 0.33
+
+        n = np.random.choice(self.n_grams, 1, p=[one_gram_prob, 1-one_gram_prob])[0]
+        word_distr = self.ngram_word_distributions[n]
+
+        key = word_distr.keys()[np.random.randint(len(word_distr))]
+        chosen_words = list(key[:])
+        for i in range(text_length - n):
+            if len(key) < n: # if not enougth words for key
+                key = tuple(chosen_words[-1])
+                word_distr = self.ngram_word_distributions[1]
+
+            print n
+            word = self.get_next_word(key, word_distr)
+            if word is None:
+                break
+            chosen_words.append(word)
+            
+            n = np.random.choice(self.n_grams, 1, p=[one_gram_prob, 1-one_gram_prob])[0]
+            word_distr = self.ngram_word_distributions[n]
+            
+            key = tuple(chosen_words[-n:])
+        return ' '.join(chosen_words)
 
 if __name__ == '__main__':
     with open('./../../test_data/test_text.txt', 'r') as f:
