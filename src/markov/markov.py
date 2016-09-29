@@ -82,9 +82,10 @@ class Markov:
 
     def generate(self, text_length=10):
         # Test version for [1, 2] n-grams
-        one_gram_prob = 0.33
+        # one_gram_prob = 0.33
+        p_distr = [0.3, 0.5, 0.2]
 
-        n = np.random.choice(self.n_grams, 1, p=[one_gram_prob, 1-one_gram_prob])[0]
+        n = np.random.choice(self.n_grams, 1, p=p_distr)[0]
         word_distr = self.word_distr
 
         key = word_distr.keys()[np.random.randint(len(word_distr))]
@@ -92,9 +93,10 @@ class Markov:
         for i in range(text_length - n):
             word = self._get_next_word(key)
             if word is None:
-                break
+                key = key[1:]
+                continue
             chosen_words.append(word)
-            n = np.random.choice(self.n_grams, 1, p=[one_gram_prob, 1-one_gram_prob])[0]            
+            n = np.random.choice(self.n_grams, 1, p=p_distr)[0]            
             key = tuple(chosen_words[-n:])
         return ' '.join(chosen_words)
 
@@ -103,10 +105,10 @@ if __name__ == '__main__':
     with open('./../../test_data/test_text.txt', 'r') as f:
         test_string = f.read().decode('UTF-8')
 
-    mark = Markov(test_string)
+    mark = Markov(test_string, [1, 2, 3])
 
     with open('./../../test_data/res.txt', 'w+') as f:
         for i in range(20):
-            generated = mark.generate(text_length=25)
+            generated = mark.generate(text_length=50)
             f.write(generated.encode('UTF-8'))
             f.write('\n\n=== === ===\n\n')
